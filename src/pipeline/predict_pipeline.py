@@ -107,7 +107,7 @@ def get_deberta_base1(text_list, weight_list):
     end_time = time.time()
     print(end_time - start_time)
 
-    return toxic_pred, toxic_score, ranks
+    return toxic_pred, toxic_score
 
 class PredictPipeline:
     def __init__(self):
@@ -209,11 +209,11 @@ class CustomData:
 
 
 if __name__ == "__main__":
-    df_path = os.path.join(os.path.dirname(__file__), '..', '..', 'artifacts/', 'comments_to_score.csv')
-    df = pd.read_csv(df_path)
-    id_list = df['comment_id'].values
-    text_list = df['text'].values
+     # df_path = os.path.join(os.path.dirname(__file__), '..', '..', 'artifacts/', 'comments_to_score.csv')
+    # df = pd.read_csv(df_path)
+    text_list = ['Not good. This is pretty awful and disgusting.']
     weight_list3 = [20.0, 18.0, 4.0, 4.0, 1.0, 4.0]
-    toxic_pred, toxic_score, ranks = get_deberta_base1(text_list, weight_list3)
-    print(toxic_pred, ranks)
+    predict_pipeline = PredictPipeline()
+    toxic_pred, toxic_score = predict_pipeline.predict(text_list)
+    print(toxic_pred, toxic_score)
 
