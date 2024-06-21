@@ -1,18 +1,14 @@
 import sys
 import pandas as pd
 from src.exception import CustomException
-from src.utils import load_object
 import os
 import numpy as np
-from tqdm import tqdm
 import torch.nn as nn
-from torch import optim
-import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import torch
-from torch.cuda.amp import autocast, GradScaler
+from torch.cuda.amp import autocast
 import time
-from transformers import DebertaModel, DebertaPreTrainedModel, DebertaConfig, get_linear_schedule_with_warmup, DebertaTokenizer
+from transformers import DebertaModel, DebertaPreTrainedModel, DebertaConfig, DebertaTokenizer
 from transformers.models.deberta.modeling_deberta import ContextPooler
 
 
@@ -40,6 +36,7 @@ class JRSModel(DebertaPreTrainedModel):
         output_dim = self.pooler.output_dim
         self.classifier = nn.Linear(output_dim, 6)
         self.init_weights()
+
     def forward(self, input_ids, attention_mask=None, token_type_ids=None):
         outputs = self.deberta(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
         encoder_layer = outputs[0]
@@ -116,17 +113,6 @@ class PredictPipeline:
 
     def predict(self, text_list):
         try:
-            '''
-            model_path=os.path.join("artifacts","model.pkl")
-            preprocessor_path=os.path.join('artifacts','preprocessor.pkl')
-            print("Before Loading")
-            model=load_object(file_path=model_path)
-            preprocessor=load_object(file_path=preprocessor_path)
-            print("After Loading")
-            data_scaled=preprocessor.transform(features)
-            preds=model.predict(data_scaled)
-            return preds
-            '''
             start_time = time.time()
 
             # parameters
@@ -139,13 +125,18 @@ class PredictPipeline:
             model_path = os.path.join(os.path.dirname(__file__), '..', '..', 'artifacts/')
             config_path = os.path.join(model_path, 'config.json')
             tokenizer = DebertaTokenizer.from_pretrained(model_path)
+            print('Tokenizer has been processed:{}'.format(model_path))
 
             # Resolve the absolute paths
             model_path = os.path.abspath(os.path.join(model_path, 'model'))
             config_path = os.path.abspath(config_path)
+            print('Model Path is {}'.format(model_path))
 
             config = DebertaConfig.from_pretrained(config_path)
+            print('Config has been processed:{}'.format(config_path))
+
             model = JRSModel.from_pretrained(model_path, config=config)
+            print('Model has been processed:{}'.format(model_path))
 
             # Check if GPU is available and move model to the appropriate device
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -154,12 +145,14 @@ class PredictPipeline:
 
             # iterator for validation
             dataset = JRSDataset(text_list, tokenizer, max_len)
+            print('Dataset worked')
             generator = DataLoader(dataset=dataset, 
                                 batch_size=batch_size, 
                                 shuffle=False,
-                                num_workers=2, 
+                                num_workers=0, 
                                 pin_memory=False)
-
+            print('dataloader worked')
+            
             for j, (batch_input_ids, batch_attention_mask, batch_token_type_ids) in enumerate(generator):
                 with torch.no_grad():
                     start = j * batch_size
@@ -174,7 +167,7 @@ class PredictPipeline:
                     with autocast():
                         logits = model(batch_input_ids, batch_attention_mask, batch_token_type_ids)
                     toxic_pred[start:end] = logits.sigmoid().cpu().data.numpy()
-
+            print('Prediction Finished')
             ### result
             toxic_score = np.zeros((len(text_list), ), dtype=np.float32)
             for i in range(6):
@@ -190,7 +183,6 @@ class PredictPipeline:
         
         except Exception as e:
             raise CustomException(e,sys)
-
 
 
 class CustomData:

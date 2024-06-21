@@ -20,11 +20,10 @@ def get_requirements(file_path:str)->List[str]:
 
 
 setup(
-name='StockClosingPrediction',
+name='ToxicCommentSeverity',
 version='0.0.1',
 author='Haijian Will Wu',
 author_email='willwuhj@outlook.com',
 packages=find_packages(),
 install_requires = get_requirements('requirements.txt')
-
 )
